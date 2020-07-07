@@ -823,7 +823,7 @@ private:
   template <typename RemarkKind,
             typename RemarkCallBack = function_ref<RemarkKind(RemarkKind &&)>>
   void emitRemark(Instruction *Inst, StringRef RemarkName,
-                  RemarkCallBack &&RemarkCB) {
+                  RemarkCallBack &&RemarkCB) const {
     Function *F = Inst->getParent()->getParent();
     auto &ORE = OREGetter(F);
 
@@ -833,9 +833,10 @@ private:
 
   /// Emit a remark on a function. Since only OptimizationRemark is supporting
   /// this, it can't be made generic.
-  void emitRemarkOnFunction(
-      Function *F, StringRef RemarkName,
-      function_ref<OptimizationRemark(OptimizationRemark &&)> &&RemarkCB) {
+  void
+  emitRemarkOnFunction(Function *F, StringRef RemarkName,
+                       function_ref<OptimizationRemark(OptimizationRemark &&)>
+                           &&RemarkCB) const {
     auto &ORE = OREGetter(F);
 
     ORE.emit([&]() {
