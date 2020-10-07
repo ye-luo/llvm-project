@@ -67,9 +67,6 @@ if(LIBOMPTARGET_DEP_CUDA_FOUND)
 
   set(omp_data_objects ${devicertl_common_directory}/src/omp_data.cu)
 
-  # Get the compute capability the user requested or use SM_35 by default.
-  # SM_35 is what clang uses by default.
-  set(default_capabilities 35)
   if (DEFINED LIBOMPTARGET_NVPTX_COMPUTE_CAPABILITY)
     set(default_capabilities ${LIBOMPTARGET_NVPTX_COMPUTE_CAPABILITY})
     libomptarget_warning_say("LIBOMPTARGET_NVPTX_COMPUTE_CAPABILITY is deprecated, please use LIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES")
