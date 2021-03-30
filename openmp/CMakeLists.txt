@@ -43,6 +43,16 @@ else()
   list(APPEND LIBOMPTARGET_LLVM_INCLUDE_DIRS ${LLVM_MAIN_INCLUDE_DIR} ${LLVM_BINARY_DIR}/include)
 endif()
 
+set(CMAKE_CXX_STANDARD 14 CACHE STRING "C++ standard to conform to")
+set(CMAKE_CXX_STANDARD_REQUIRED YES)
+if (CYGWIN)
+  # Cygwin is a bit stricter and lack things like 'strdup', 'stricmp', etc in
+  # c++xx mode.
+  set(CMAKE_CXX_EXTENSIONS YES)
+else()
+  set(CMAKE_CXX_EXTENSIONS NO)
+endif()
+
 # Check and set up common compiler flags.
 include(config-ix)
 include(HandleOpenMPOptions)
