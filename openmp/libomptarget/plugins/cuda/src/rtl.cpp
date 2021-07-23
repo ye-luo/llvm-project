@@ -127,6 +127,29 @@ int memcpyDtoD(const void *SrcPtr, void *DstPtr, int64_t Size,
   return OFFLOAD_SUCCESS;
 }
 
+void *createEvent(__tgt_async_info *AsyncInfo) {
+  CUstream Stream = reinterpret_cast<CUstream>(AsyncInfo->Queue);
+  CUevent Event = nullptr;
+
+  CUresult Err = cuEventCreate(&Event, CU_EVENT_DEFAULT);
+  if (Err != CUDA_SUCCESS) {
+    DP("Error when creating event. stream = " DPxMOD ", event = " DPxMOD "\n",
+       DPxPTR(Stream), DPxPTR(Event));
+    CUDA_ERR_STRING(Err);
+    return nullptr;
+  }
+
+  Err = cuEventRecord(Event, Stream);
+  if (Err != CUDA_SUCCESS) {
+    DP("Error when recording event. stream = " DPxMOD ", event = " DPxMOD "\n",
+       DPxPTR(Stream), DPxPTR(Event));
+    CUDA_ERR_STRING(Err);
+    return nullptr;
+  }
+
+  return (void *)Event;
+}
+
 // Structure contains per-device data
 struct DeviceDataTy {
   /// List that contains all the kernels.
@@ -1157,6 +1180,39 @@ public:
     }
     return (Err == CUDA_SUCCESS) ? OFFLOAD_SUCCESS : OFFLOAD_FAIL;
   }
+
+  int waitEvent(const int DeviceId, __tgt_async_info *AsyncInfo,
+                void *EventPtr) const {
+    CUstream Stream = getStream(DeviceId, AsyncInfo);
+    CUevent Event = reinterpret_cast<CUevent>(EventPtr);
+
+    CUresult Err = cuStreamWaitEvent(Stream, Event, CU_EVENT_WAIT_DEFAULT);
+    if (Err != CUDA_SUCCESS) {
+      DP("Error when waiting event. stream = " DPxMOD ", event = " DPxMOD "\n",
+         DPxPTR(Stream), DPxPTR(Event));
+      CUDA_ERR_STRING(Err);
+      return OFFLOAD_FAIL;
+    }
+
+    return OFFLOAD_SUCCESS;
+  }
+
+  int destroyEvent(const int DeviceId, __tgt_async_info *AsyncInfo,
+                   void *EventPtr) const {
+    CUstream Stream = reinterpret_cast<CUstream>(AsyncInfo->Queue);
+    CUevent Event = reinterpret_cast<CUevent>(EventPtr);
+
+    CUresult Err = cuEventDestroy(Event);
+    if (Err != CUDA_SUCCESS) {
+      DP("Error when destroying event. stream = " DPxMOD ", event = " DPxMOD
+         "\n",
+         DPxPTR(Stream), DPxPTR(Event));
+      CUDA_ERR_STRING(Err);
+      return OFFLOAD_FAIL;
+    }
+
+    return OFFLOAD_SUCCESS;
+  }
 };
 
 DeviceRTLTy DeviceRTL;
@@ -1355,6 +1411,34 @@ int32_t __tgt_rtl_synchronize(int32_t device_id,
 void __tgt_rtl_set_info_flag(uint32_t NewInfoLevel) {
   std::atomic<uint32_t> &InfoLevel = getInfoLevelInternal();
   InfoLevel.store(NewInfoLevel);
+}
+
+void *__tgt_rtl_create_event(int32_t device_id,
+                               __tgt_async_info *async_info_ptr) {
+  assert(DeviceRTL.isValidDeviceId(device_id) && "device_id is invalid");
+  assert(async_info_ptr && "async_info_ptr is nullptr");
+  assert(async_info_ptr->Queue && "async_info_ptr->Queue is nullptr");
+
+  return createEvent(async_info_ptr);
+}
+
+int32_t __tgt_rtl_wait_event(int32_t device_id, void *event_ptr,
+                             __tgt_async_info *async_info_ptr) {
+  assert(DeviceRTL.isValidDeviceId(device_id) && "device_id is invalid");
+  assert(async_info_ptr && "async_info_ptr is nullptr");
+  assert(event_ptr && "event is nullptr");
+
+  return DeviceRTL.waitEvent(device_id, async_info_ptr, event_ptr);
+}
+
+int32_t __tgt_rtl_destroy_event(int32_t device_id, void *event_ptr,
+                                __tgt_async_info *async_info_ptr) {
+  assert(DeviceRTL.isValidDeviceId(device_id) && "device_id is invalid");
+  assert(async_info_ptr && "async_info_ptr is nullptr");
+  assert(async_info_ptr->Queue && "async_info_ptr->Queue is nullptr");
+  assert(event_ptr && "event is nullptr");
+
+  return DeviceRTL.destroyEvent(device_id, async_info_ptr, event_ptr);
 }
 
 #ifdef __cplusplus

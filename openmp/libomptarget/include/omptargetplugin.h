@@ -142,6 +142,20 @@ int32_t __tgt_rtl_synchronize(int32_t ID, __tgt_async_info *AsyncInfo);
 // Set plugin's internal information flag externally.
 void __tgt_rtl_set_info_flag(uint32_t);
 
+// Create an event at the moment when this function is called based on
+// AsyncInfo. The returned event can be used later for setting dependency or
+// synchronization.
+void *__tgt_rtl_create_event(int32_t ID, __tgt_async_info *AsyncInfo);
+
+// Destroy the event created by __tgt_rtl_create_event previously.
+int32_t __tgt_rtl_destroy_event(int32_t ID, void *Event,
+                                __tgt_async_info *AsyncInfo);
+
+// Wait for the event. It can be used for setting dependences. Depending on
+// targets, it can be blocking or non-blocking.
+int32_t __tgt_rtl_wait_event(int32_t ID, void *Event,
+                             __tgt_async_info *AsyncInfo);
+
 #ifdef __cplusplus
 }
 #endif

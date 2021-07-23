@@ -56,6 +56,9 @@ struct RTLInfoTy {
   typedef int32_t (*register_lib_ty)(__tgt_bin_desc *);
   typedef int32_t(supports_empty_images_ty)();
   typedef void(set_info_flag_ty)(uint32_t);
+  typedef void *(create_event_ty)(int32_t, __tgt_async_info *);
+  typedef int32_t(destroy_event_ty)(int32_t, void *, __tgt_async_info *);
+  typedef int32_t(wait_event_ty)(int32_t, void *, __tgt_async_info *);
 
   int32_t Idx = -1;             // RTL index, index is the number of devices
                                 // of other RTLs that were registered before,
@@ -93,6 +96,9 @@ struct RTLInfoTy {
   register_lib_ty unregister_lib = nullptr;
   supports_empty_images_ty *supports_empty_images = nullptr;
   set_info_flag_ty *set_info_flag = nullptr;
+  create_event_ty *create_event = nullptr;
+  destroy_event_ty *destroy_event = nullptr;
+  wait_event_ty *wait_event = nullptr;
 
   // Are there images associated with this RTL.
   bool isUsed = false;

@@ -584,12 +584,20 @@ int targetDataBegin(ident_t *loc, DeviceTy &Device, int32_t arg_num,
 
         int rt = Device.submitData(PointerTgtPtrBegin, &TgtPtrBase,
                                    sizeof(void *), AsyncInfo);
-        Pointer_TPR.MapTableEntry->unlock();
-
         if (rt != OFFLOAD_SUCCESS) {
+          Pointer_TPR.MapTableEntry->unlock();
           REPORT("Copying data to device failed.\n");
           return OFFLOAD_FAIL;
         }
+        // Create a new event for this moment
+        void *Event = Device.createEvent(AsyncInfo);
+        // Exchange the old event with new created event
+        void *OldEvent = Pointer_TPR.MapTableEntry->Event;
+        Pointer_TPR.MapTableEntry->Event = Event;
+        Pointer_TPR.MapTableEntry->unlock();
+        // If the old event is not null, we need to destroy it.
+        if (OldEvent)
+          Device.destroyEvent(OldEvent, AsyncInfo);
       } else
         Device.ShadowMtx.unlock();
     }

@@ -49,6 +49,9 @@ struct HostDataToTargetTy {
 
   uintptr_t TgtPtrBegin; // target info.
 
+  /// Pointer to the event corresponding to the data update of this map.
+  mutable void *Event;
+
 private:
   /// use mutable to allow modification via std::set iterator which is const.
   mutable uint64_t RefCount;
@@ -65,7 +68,7 @@ public:
   HostDataToTargetTy(uintptr_t BP, uintptr_t B, uintptr_t E, uintptr_t TB,
                      map_var_info_t Name = nullptr, bool IsINF = false)
       : HstPtrBase(BP), HstPtrBegin(B), HstPtrEnd(E), HstPtrName(Name),
-        TgtPtrBegin(TB), RefCount(IsINF ? INFRefCount : 1),
+        TgtPtrBegin(TB), Event(nullptr), RefCount(IsINF ? INFRefCount : 1),
         UpdateMtx(std::make_shared<std::mutex>()) {}
 
   uint64_t getRefCount() const { return RefCount; }
@@ -274,6 +277,12 @@ struct DeviceTy {
   /// Synchronize device/queue/event based on \p AsyncInfo and return
   /// OFFLOAD_SUCCESS/OFFLOAD_FAIL when succeeds/fails.
   int32_t synchronize(AsyncInfoTy &AsyncInfo);
+
+  void *createEvent(AsyncInfoTy &AsyncInfo);
+
+  int32_t destroyEvent(void *Event, AsyncInfoTy &AsyncInfo);
+
+  int32_t waitEvent(void *Event, AsyncInfoTy &AsyncInfo);
 
 private:
   // Call to RTL

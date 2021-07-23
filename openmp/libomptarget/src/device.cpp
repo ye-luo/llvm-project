@@ -258,29 +258,63 @@ DeviceTy::getTargetPointer(void *HstPtrBegin, void *HstPtrBase, int64_t Size,
   if (IsNew && MoveData == MoveDataStateTy::UNKNOWN)
     MoveData = MoveDataStateTy::REQUIRED;
 
-  // If the target pointer is valid, and we need to transfer data, issue the
-  // data transfer.
-  if (TargetPointer && (MoveData == MoveDataStateTy::REQUIRED)) {
-    // Lock the entry before releasing the mapping table lock such that another
-    // thread that could issue data movement will get the right result.
-    Entry->lock();
-    // Release the mapping table lock right after the entry is locked.
-    DataMapMtx.unlock();
+  if (TargetPointer) {
+    // If the target pointer is valid, and we need to transfer data, issue the
+    // data transfer.
+    if (MoveData == MoveDataStateTy::REQUIRED) {
+      // Lock the entry before releasing the mapping table lock such that
+      // another thread that could issue data movement will get the right
+      // result.
+      Entry->lock();
+      // Release the mapping table lock right after the entry is locked.
+      DataMapMtx.unlock();
 
-    DP("Moving %" PRId64 " bytes (hst:" DPxMOD ") -> (tgt:" DPxMOD ")\n", Size,
-       DPxPTR(HstPtrBegin), DPxPTR(TargetPointer));
+      DP("Moving %" PRId64 " bytes (hst:" DPxMOD ") -> (tgt:" DPxMOD ")\n",
+         Size, DPxPTR(HstPtrBegin), DPxPTR(TargetPointer));
 
-    int Ret = submitData(TargetPointer, HstPtrBegin, Size, AsyncInfo);
+      int Ret = submitData(TargetPointer, HstPtrBegin, Size, AsyncInfo);
 
-    // Unlock the entry immediately after the data movement is issued.
-    Entry->unlock();
+      if (Ret != OFFLOAD_SUCCESS) {
+        // Unlock the entry immediately if data movement issuing reports error.
+        Entry->unlock();
 
-    if (Ret != OFFLOAD_SUCCESS) {
-      REPORT("Copying data to device failed.\n");
-      // We will also return nullptr if the data movement fails because that
-      // pointer points to a corrupted memory region so it doesn't make any
-      // sense to continue to use it.
-      TargetPointer = nullptr;
+        REPORT("Copying data to device failed.\n");
+        // We will also return nullptr if the data movement fails because that
+        // pointer points to a corrupted memory region so it doesn't make any
+        // sense to continue to use it.
+        TargetPointer = nullptr;
+      }
+
+      // Create an event at this moment and attach it to the entry.
+      void *Event = createEvent(AsyncInfo);
+      void *OldEvent = Entry->Event;
+      Entry->Event = Event;
+      // We're done with the entry. Release the entry.
+      Entry->unlock();
+      // If there is an event attached, destroy it.
+      if (OldEvent)
+        destroyEvent(OldEvent, AsyncInfo);
+    } else {
+      // Release the mapping table lock directly.
+      DataMapMtx.unlock();
+      // If not a host pointer, we need to wait for the event if it exists.
+      if (!IsHostPtr) {
+        Entry->lock();
+        void *Event = Entry->Event;
+        Entry->unlock();
+
+        if (Event) {
+          int Ret = waitEvent(Event, AsyncInfo);
+          if (Ret != OFFLOAD_SUCCESS) {
+            // If it fails to wait for the event, we need to return nullptr in
+            // case of any data race.
+            REPORT("Failed to wait for event " DPxMOD ".\n", DPxPTR(Event));
+            return {{false /* IsNewEntry */, false /* IsHostPointer */},
+                    {} /* MapTableEntry */,
+                    nullptr /* TargetPointer */};
+          }
+        }
+      }
     }
   } else {
     // Release the mapping table lock directly.
@@ -541,6 +575,27 @@ bool DeviceTy::isDataExchangable(const DeviceTy &DstDevice) {
 int32_t DeviceTy::synchronize(AsyncInfoTy &AsyncInfo) {
   if (RTL->synchronize)
     return RTL->synchronize(RTLDeviceID, AsyncInfo);
+  return OFFLOAD_SUCCESS;
+}
+
+void *DeviceTy::createEvent(AsyncInfoTy &AsyncInfo) {
+  if (RTL->create_event)
+    return RTL->create_event(RTLDeviceID, AsyncInfo);
+
+  return nullptr;
+}
+
+int32_t DeviceTy::destroyEvent(void *Event, AsyncInfoTy &AsyncInfo) {
+  if (RTL->create_event)
+    return RTL->destroy_event(RTLDeviceID, Event, AsyncInfo);
+
+  return OFFLOAD_SUCCESS;
+}
+
+int32_t DeviceTy::waitEvent(void *Event, AsyncInfoTy &AsyncInfo) {
+  if (RTL->create_event)
+    return RTL->wait_event(RTLDeviceID, Event, AsyncInfo);
+
   return OFFLOAD_SUCCESS;
 }
 
