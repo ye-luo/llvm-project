@@ -50,7 +50,7 @@ int AsyncInfoTy::synchronize() {
         }
 
         assert(AsyncInfo.Event == nullptr);
-        DP("Event has been fullfiled and destroyed!\n");
+        DP("Event has been fulfilled and destroyed!\n");
       }
       else
         DP("No event support by the pluggin!\n");

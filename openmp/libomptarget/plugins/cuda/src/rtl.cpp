@@ -1138,6 +1138,60 @@ public:
     return OFFLOAD_SUCCESS;
   }
 
+  int recordEvent(const int DeviceId, __tgt_async_info *AsyncInfo) const {
+    CUstream Stream = reinterpret_cast<CUstream>(AsyncInfo->Queue);
+    CUevent Event;
+    CUresult Err = cuEventCreate(&Event, CU_EVENT_DEFAULT);
+
+    if (Err != CUDA_SUCCESS) {
+      DP("Error when creating an event. stream = " DPxMOD
+         ", async info ptr = " DPxMOD "\n",
+         DPxPTR(Stream), DPxPTR(AsyncInfo));
+      CUDA_ERR_STRING(Err);
+      return OFFLOAD_FAIL;
+    }
+    Err = cuEventRecord(Event, Stream);
+    if (Err != CUDA_SUCCESS) {
+      DP("Error when recording an event. stream = " DPxMOD
+         ", async info ptr = " DPxMOD "\n",
+         DPxPTR(Stream), DPxPTR(AsyncInfo));
+      CUDA_ERR_STRING(Err);
+      return OFFLOAD_FAIL;
+    }
+    AsyncInfo->Event = Event;
+    return OFFLOAD_SUCCESS;
+  }
+
+  int queryEvent(const int DeviceId, __tgt_async_info *AsyncInfo) const {
+    CUevent Event = reinterpret_cast<CUevent>(AsyncInfo->Event);
+    CUresult Err = cuEventQuery(Event);
+
+    if (Err == CUDA_ERROR_NOT_READY) {
+      DP("captured work is incomplete. Event = " DPxMOD
+         ", async info ptr = " DPxMOD "\n",
+         DPxPTR(Event), DPxPTR(AsyncInfo));
+      //CUDA_ERR_STRING(Err);
+      return OFFLOAD_SUCCESS;
+    }
+    else if(Err != CUDA_SUCCESS) {
+      DP("Error when querying an event. Event = " DPxMOD
+         ", async info ptr = " DPxMOD "\n",
+         DPxPTR(Event), DPxPTR(AsyncInfo));
+      CUDA_ERR_STRING(Err);
+      return OFFLOAD_FAIL;
+    }
+    Err = cuEventDestroy(Event);
+    if(Err != CUDA_SUCCESS) {
+      DP("Error when destroying an event. Event = " DPxMOD
+         ", async info ptr = " DPxMOD "\n",
+         DPxPTR(Event), DPxPTR(AsyncInfo));
+      CUDA_ERR_STRING(Err);
+      return OFFLOAD_FAIL;
+    }
+    AsyncInfo->Event = nullptr;
+    return OFFLOAD_SUCCESS;
+  }
+
   int synchronize(const int DeviceId, __tgt_async_info *AsyncInfo) const {
     CUstream Stream = reinterpret_cast<CUstream>(AsyncInfo->Queue);
     CUresult Err = cuStreamSynchronize(Stream);
@@ -1341,6 +1395,24 @@ int32_t __tgt_rtl_run_target_region_async(int32_t device_id,
       device_id, tgt_entry_ptr, tgt_args, tgt_offsets, arg_num,
       /* team num*/ 1, /* thread_limit */ 1, /* loop_tripcount */ 0,
       async_info_ptr);
+}
+
+int32_t __tgt_rtl_record_event(int32_t device_id,
+                              __tgt_async_info *async_info_ptr) {
+  assert(DeviceRTL.isValidDeviceId(device_id) && "device_id is invalid");
+  assert(async_info_ptr && "async_info_ptr is nullptr");
+  assert(async_info_ptr->Queue && "async_info_ptr->Queue is nullptr");
+
+  return DeviceRTL.recordEvent(device_id, async_info_ptr);
+}
+
+int32_t __tgt_rtl_query_event(int32_t device_id,
+                              __tgt_async_info *async_info_ptr) {
+  assert(DeviceRTL.isValidDeviceId(device_id) && "device_id is invalid");
+  assert(async_info_ptr && "async_info_ptr is nullptr");
+  assert(async_info_ptr->Event && "async_info_ptr->Event is nullptr");
+
+  return DeviceRTL.queryEvent(device_id, async_info_ptr);
 }
 
 int32_t __tgt_rtl_synchronize(int32_t device_id,
