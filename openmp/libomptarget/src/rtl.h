@@ -52,6 +52,8 @@ struct RTLInfoTy {
                                             int32_t, uint64_t,
                                             __tgt_async_info *);
   typedef int64_t(init_requires_ty)(int64_t);
+  typedef int64_t(record_event_ty)(int32_t, __tgt_async_info *);
+  typedef int64_t(query_event_ty)(int32_t, __tgt_async_info *);
   typedef int64_t(synchronize_ty)(int32_t, __tgt_async_info *);
   typedef int32_t (*register_lib_ty)(__tgt_bin_desc *);
   typedef int32_t(supports_empty_images_ty)();
@@ -88,6 +90,8 @@ struct RTLInfoTy {
   run_team_region_ty *run_team_region = nullptr;
   run_team_region_async_ty *run_team_region_async = nullptr;
   init_requires_ty *init_requires = nullptr;
+  record_event_ty *record_event = nullptr;
+  query_event_ty *query_event = nullptr;
   synchronize_ty *synchronize = nullptr;
   register_lib_ty register_lib = nullptr;
   register_lib_ty unregister_lib = nullptr;

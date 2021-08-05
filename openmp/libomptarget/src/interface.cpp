@@ -407,9 +407,35 @@ EXTERN int __tgt_target_teams_nowait_mapper(
   if (depNum + noAliasDepNum > 0)
     __kmpc_omp_taskwait(loc, __kmpc_global_thread_num(loc));
 
-  return __tgt_target_teams_mapper(loc, device_id, host_ptr, arg_num, args_base,
-                                   args, arg_sizes, arg_types, arg_names,
-                                   arg_mappers, team_num, thread_limit);
+  DP("Entering target nowait region with entry point " DPxMOD " and device Id %" PRId64
+     "\n",
+     DPxPTR(host_ptr), device_id);
+  if (checkDeviceAndCtors(device_id, loc) != OFFLOAD_SUCCESS) {
+    DP("Not offloading to device %" PRId64 "\n", device_id);
+    return OFFLOAD_FAIL;
+  }
+
+  if (getInfoLevel() & OMP_INFOTYPE_KERNEL_ARGS)
+    printKernelArguments(loc, device_id, arg_num, arg_sizes, arg_types,
+                         arg_names, "Entering OpenMP kernel");
+#ifdef OMPTARGET_DEBUG
+  for (int i = 0; i < arg_num; ++i) {
+    DP("Entry %2d: Base=" DPxMOD ", Begin=" DPxMOD ", Size=%" PRId64
+       ", Type=0x%" PRIx64 ", Name=%s\n",
+       i, DPxPTR(args_base[i]), DPxPTR(args[i]), arg_sizes[i], arg_types[i],
+       (arg_names) ? getNameFromMapping(arg_names[i]).c_str() : "unknown");
+  }
+#endif
+
+  DeviceTy &Device = PM->Devices[device_id];
+  AsyncInfoTy AsyncInfo(Device, true);
+  int rc = target(loc, Device, host_ptr, arg_num, args_base, args, arg_sizes,
+                  arg_types, arg_names, arg_mappers, team_num, thread_limit,
+                  true /*team*/, AsyncInfo);
+  if (rc == OFFLOAD_SUCCESS)
+    rc = AsyncInfo.synchronize();
+  handleTargetOutcome(rc == OFFLOAD_SUCCESS, loc);
+  return rc;
 }
 
 // Get the current number of components for a user-defined mapper.

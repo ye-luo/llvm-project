@@ -136,6 +136,7 @@ struct __tgt_async_info {
   // We assume to use this structure to do synchronization. In CUDA backend, it
   // is CUstream.
   void *Queue = nullptr;
+  void *Event = nullptr;
 };
 
 struct DeviceTy;
@@ -151,8 +152,10 @@ class AsyncInfoTy {
   __tgt_async_info AsyncInfo;
   DeviceTy &Device;
 
+  bool FromNoWait;
+
 public:
-  AsyncInfoTy(DeviceTy &Device) : Device(Device) {}
+  AsyncInfoTy(DeviceTy &Device, bool from_nowait = false) : Device(Device), FromNoWait(from_nowait) {}
   ~AsyncInfoTy() { synchronize(); }
 
   /// Implicit conversion to the __tgt_async_info which is used in the
@@ -167,6 +170,8 @@ public:
   /// Return a void* reference with a lifetime that is at least as long as this
   /// AsyncInfoTy object. The location can be used as intermediate buffer.
   void *&getVoidPtrLocation();
+
+  bool EventSupported = false;
 };
 
 /// This struct is a record of non-contiguous information
@@ -330,6 +335,8 @@ void __kmpc_push_target_tripcount(int64_t device_id, uint64_t loop_tripcount);
 
 void __kmpc_push_target_tripcount_mapper(ident_t *loc, int64_t device_id,
                                          uint64_t loop_tripcount);
+
+void __kmpc_target_task_yield();
 
 void __tgt_set_info_flag(uint32_t);
 

@@ -273,6 +273,8 @@ struct DeviceTy {
 
   /// Synchronize device/queue/event based on \p AsyncInfo and return
   /// OFFLOAD_SUCCESS/OFFLOAD_FAIL when succeeds/fails.
+  int32_t recordEvent(AsyncInfoTy &AsyncInfo);
+  int32_t queryEvent(AsyncInfoTy &AsyncInfo);
   int32_t synchronize(AsyncInfoTy &AsyncInfo);
 
 private:

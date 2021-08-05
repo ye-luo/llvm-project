@@ -22,7 +22,41 @@
 int AsyncInfoTy::synchronize() {
   int Result = OFFLOAD_SUCCESS;
   if (AsyncInfo.Queue) {
-    // If we have a queue we need to synchronize it now.
+    // If we have a queue, there are works on going and we need to synchronize it now.
+    if (FromNoWait)
+    {
+      // if FromNoWait, return 1) no event support 2) event create fail 3) event record fail.
+      int Ret = Device.recordEvent(*this);
+      // handle case 2 and 3.
+      if (Ret != OFFLOAD_SUCCESS)
+      {
+        DP("recordEvent failed!\n");
+        return OFFLOAD_FAIL;
+      }
+      // in case 1) skip task yield
+      if (EventSupported)
+      {
+        assert(AsyncInfo.Event);
+        do
+        {
+          __kmpc_target_task_yield();
+          Ret = Device.queryEvent(*this);
+        } while (Ret == OFFLOAD_SUCCESS && AsyncInfo.Event);
+
+        if (Ret != OFFLOAD_SUCCESS)
+        {
+          DP("queryEvent failed!\n");
+          return OFFLOAD_FAIL;
+        }
+
+        assert(AsyncInfo.Event == nullptr);
+        DP("Event has been fullfiled and destroyed!\n");
+      }
+      else
+        DP("No event support by the pluggin!\n");
+    }
+    
+    // otherwise, call synchronize
     Result = Device.synchronize(*this);
     assert(AsyncInfo.Queue == nullptr &&
            "The device plugin should have nulled the queue to indicate there "

@@ -538,6 +538,30 @@ bool DeviceTy::isDataExchangable(const DeviceTy &DstDevice) {
   return false;
 }
 
+int32_t DeviceTy::recordEvent(AsyncInfoTy &AsyncInfo) {
+  if (RTL->record_event)
+  {
+    AsyncInfo.EventSupported = true;
+    return RTL->record_event(RTLDeviceID, AsyncInfo);
+  }
+  else
+  {
+    AsyncInfo.EventSupported = false;
+    return OFFLOAD_SUCCESS;
+  }
+}
+
+// when OFFLOAD_SUCCESS is returned, it means either the event has been fullfiled without error
+// or the event has not been not fullfiled and AsyncInfo.Event is not nullptr.
+int32_t DeviceTy::queryEvent(AsyncInfoTy &AsyncInfo) {
+  if (AsyncInfo.EventSupported)
+  {
+    return RTL->query_event(RTLDeviceID, AsyncInfo);
+  }
+  // when events are not supported, queryEvent should not be called.
+  return OFFLOAD_FAIL;
+}
+
 int32_t DeviceTy::synchronize(AsyncInfoTy &AsyncInfo) {
   if (RTL->synchronize)
     return RTL->synchronize(RTLDeviceID, AsyncInfo);

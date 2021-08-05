@@ -1447,6 +1447,11 @@ kmp_task_t *__kmpc_omp_target_task_alloc(ident_t *loc_ref, kmp_int32 gtid,
                                sizeof_shareds, task_entry);
 }
 
+void __kmpc_target_task_yield() {
+  int gtid = __kmp_get_gtid();
+  __kmpc_omp_taskyield(nullptr, gtid, 0);
+}
+
 /*!
 @ingroup TASKING
 @param loc_ref location of the original task directive

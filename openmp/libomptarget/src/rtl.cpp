@@ -162,6 +162,8 @@ void RTLsTy::LoadRTLs() {
         dlsym(dynlib_handle, "__tgt_rtl_run_target_region_async");
     *((void **)&R.run_team_region_async) =
         dlsym(dynlib_handle, "__tgt_rtl_run_target_team_region_async");
+    *((void **)&R.record_event) = dlsym(dynlib_handle, "__tgt_rtl_record_event");
+    *((void **)&R.query_event) = dlsym(dynlib_handle, "__tgt_rtl_query_event");
     *((void **)&R.synchronize) = dlsym(dynlib_handle, "__tgt_rtl_synchronize");
     *((void **)&R.data_exchange) =
         dlsym(dynlib_handle, "__tgt_rtl_data_exchange");

@@ -35,6 +35,7 @@ if (OPENMP_ENABLE_LIBOMPTARGET_PROFILING)
   target_link_libraries(omptarget PRIVATE LLVMSupport)
 endif()
 target_link_libraries(omptarget PRIVATE
+  omp
   ${CMAKE_DL_LIBS}
   "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports")
 
