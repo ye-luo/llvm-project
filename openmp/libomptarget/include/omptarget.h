@@ -152,7 +152,13 @@ class AsyncInfoTy {
   __tgt_async_info AsyncInfo;
   DeviceTy &Device;
 
+  /// AsyncInfoTy is constructed in nowait interface.
   bool FromNoWait;
+  /// if > 0, opt in the code path using events in synchronize().
+  static int32_t UseNoWaitEvent;
+  /// when record/query events are not supported by the plugin,
+  /// this flag is set to false to disable using events at synchronize().
+  bool EventSupported = false;
 
 public:
   AsyncInfoTy(DeviceTy &Device, bool from_nowait = false) : Device(Device), FromNoWait(from_nowait) {}
@@ -171,8 +177,10 @@ public:
   /// AsyncInfoTy object. The location can be used as intermediate buffer.
   void *&getVoidPtrLocation();
 
-  static int32_t UseNoWaitEvent;
-  bool EventSupported = false;
+  /// set EventSupported
+  void setEventSupported(bool supported) { EventSupported = supported; }
+  /// get EventSupported
+  bool getEventSupported() const { return EventSupported; }
 };
 
 /// This struct is a record of non-contiguous information

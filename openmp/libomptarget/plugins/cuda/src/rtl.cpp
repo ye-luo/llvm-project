@@ -1159,6 +1159,12 @@ public:
       return OFFLOAD_FAIL;
     }
     AsyncInfo->Event = Event;
+
+    // Once the event is recorded, return it to stream pool and reset AsyncInfo->Queue.
+    StreamManager->returnStream(DeviceId,
+                                reinterpret_cast<CUstream>(AsyncInfo->Queue));
+    AsyncInfo->Queue = nullptr;
+
     return OFFLOAD_SUCCESS;
   }
 

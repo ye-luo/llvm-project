@@ -28,22 +28,22 @@ int AsyncInfoTy::synchronize() {
   int Result = OFFLOAD_SUCCESS;
   if (AsyncInfo.Queue) {
     // If we have a queue, there are works on going and we need to synchronize it.
-    if (FromNoWait && UseNoWaitEvent > 0)
-    {
+    if (FromNoWait && UseNoWaitEvent > 0) {
       // if FromNoWait, return 1) no event support 2) event create fail 3) event record fail.
       int Ret = Device.recordEvent(*this);
       // handle case 2 and 3.
-      if (Ret != OFFLOAD_SUCCESS)
-      {
-        DP("recordEvent failed!\n");
+      if (Ret != OFFLOAD_SUCCESS) {
+        DP("Device.recordEvent failed!\n");
         return OFFLOAD_FAIL;
       }
+
       // in case 1) skip task yield
       if (!EventSupported) {
-        DP("No event support by the pluggin!\n");
+        DP("No event support by the pluggin! Calling synchronize\n");
+        Result = Device.synchronize(*this);
       }
       else {
-        assert(AsyncInfo.Event);
+        assert(AsyncInfo.Event && "Event should exist!");
         do
         {
           __kmpc_target_task_yield();
@@ -52,18 +52,23 @@ int AsyncInfoTy::synchronize() {
 
         if (Ret != OFFLOAD_SUCCESS)
         {
-          DP("queryEvent failed!\n");
+          DP("Device.queryEvent failed!\n");
           return OFFLOAD_FAIL;
         }
 
+        // synchronization relies on events
         // Event should have been destroyed
-        assert(AsyncInfo.Event == nullptr);
+        assert(AsyncInfo.Event == nullptr && "Event should have been nulled!");
         DP("Event has been fulfilled and destroyed!\n");
       }
     }
+    else
+    {
+      DP("Calling Device.synchronize\n");
+      Result = Device.synchronize(*this);
+    }
 
-    // as the last step, call synchronize and the Queue should have been returned
-    Result = Device.synchronize(*this);
+    // as the last step, the Queue should have been returned
     assert(AsyncInfo.Queue == nullptr &&
            "The device plugin should have nulled the queue to indicate there "
            "are no outstanding actions!");
