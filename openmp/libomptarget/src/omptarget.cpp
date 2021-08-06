@@ -19,11 +19,16 @@
 #include <cassert>
 #include <vector>
 
+int32_t AsyncInfoTy::UseNoWaitEvent = []() {
+   char *EnvStr = getenv("LIBOMPTARGET_USE_NOWAIT_EVENT");
+   return EnvStr ? std::stoi(EnvStr) : 0;
+} ();
+
 int AsyncInfoTy::synchronize() {
   int Result = OFFLOAD_SUCCESS;
   if (AsyncInfo.Queue) {
-    // If we have a queue, there are works on going and we need to synchronize it now.
-    if (FromNoWait)
+    // If we have a queue, there are works on going and we need to synchronize it.
+    if (FromNoWait && UseNoWaitEvent > 0)
     {
       // if FromNoWait, return 1) no event support 2) event create fail 3) event record fail.
       int Ret = Device.recordEvent(*this);
@@ -34,8 +39,10 @@ int AsyncInfoTy::synchronize() {
         return OFFLOAD_FAIL;
       }
       // in case 1) skip task yield
-      if (EventSupported)
-      {
+      if (!EventSupported) {
+        DP("No event support by the pluggin!\n");
+      }
+      else {
         assert(AsyncInfo.Event);
         do
         {
@@ -49,14 +56,13 @@ int AsyncInfoTy::synchronize() {
           return OFFLOAD_FAIL;
         }
 
+        // Event should have been destroyed
         assert(AsyncInfo.Event == nullptr);
         DP("Event has been fulfilled and destroyed!\n");
       }
-      else
-        DP("No event support by the pluggin!\n");
     }
-    
-    // otherwise, call synchronize
+
+    // as the last step, call synchronize and the Queue should have been returned
     Result = Device.synchronize(*this);
     assert(AsyncInfo.Queue == nullptr &&
            "The device plugin should have nulled the queue to indicate there "

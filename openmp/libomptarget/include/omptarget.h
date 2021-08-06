@@ -171,6 +171,7 @@ public:
   /// AsyncInfoTy object. The location can be used as intermediate buffer.
   void *&getVoidPtrLocation();
 
+  static int32_t UseNoWaitEvent;
   bool EventSupported = false;
 };
 
